@@ -1,8 +1,12 @@
+import type { Partial<NexusMetrics> } from '../types/nexus';
+import type { NexusMetrics } from '../types/nexus';
+
 export type NexusEventMap = {
   target_registered: { targetId: string };
   target_selected: { targetId: string | null };
   target_isolated: { targetId: string };
   telemetry_received: { message: string; source?: string };
+  metrics_received: Partial<NexusMetrics>;
   transport_state: { state: 'connecting' | 'connected' | 'disconnected' | 'error' };
   security_decision: { allowed: boolean; reason: string };
 };
