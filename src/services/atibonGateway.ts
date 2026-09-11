@@ -1,4 +1,10 @@
 import { nexusEventBus } from './nexusEventBus';
+import {
+  normalizeAtibonTarget,
+  normalizeTelemetryEvent,
+  type AtibonTarget,
+  type AtibonTelemetryEvent,
+} from './atibonBridge';
 
 export interface AtibonDecision {
   allowed: boolean;
@@ -51,4 +57,17 @@ export function createAtibonAuditEvent(action: string, targetId?: string) {
     module: 'ATIBON',
     mode: 'defensive',
   } as const;
+}
+
+/**
+ * Safe adapter for connecting ATIBON's data contracts to NEXUS state.
+ * It only normalizes data supplied by an authorized transport; it never
+ * fabricates targets, metrics or telemetry.
+ */
+export function prepareAtibonTarget(input: AtibonTarget): AtibonTarget {
+  return normalizeAtibonTarget(input);
+}
+
+export function prepareAtibonTelemetry(input: AtibonTelemetryEvent): AtibonTelemetryEvent {
+  return normalizeTelemetryEvent(input);
 }
