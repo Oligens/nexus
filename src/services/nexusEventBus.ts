@@ -1,4 +1,3 @@
-import type { Partial<NexusMetrics> } from '../types/nexus';
 import type { NexusMetrics } from '../types/nexus';
 
 export type NexusEventMap = {
