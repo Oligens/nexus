@@ -7,20 +7,23 @@ export function useTelemetry() {
   const [transportState, setTransportState] = useState(telemetryTransport.getState());
 
   useEffect(() => {
-    const unsubscribe = telemetryTransport.subscribe((entry) => {
-      setEntries((prev) => [...prev, entry].slice(-140));
-    });
+    const unsubscribe = telemetryTransport.subscribe((entry) => setEntries((prev) => [...prev, entry].slice(-140)));
     return () => unsubscribe();
   }, []);
 
   const connect = useCallback(() => telemetryTransport.connect(), []);
   const disconnect = useCallback(() => telemetryTransport.disconnect(), []);
   const clear = useCallback(() => setEntries([]), []);
+  const addOperatorNote = useCallback((message: string) => {
+    const value = message.trim();
+    if (!value) return;
+    setEntries((prev) => [...prev, { id: crypto.randomUUID(), timestamp: new Date().toISOString(), message: value, level: 'info', source: 'operator-note' }].slice(-140));
+  }, []);
 
   useEffect(() => {
     const interval = window.setInterval(() => setTransportState(telemetryTransport.getState()), 250);
     return () => window.clearInterval(interval);
   }, []);
 
-  return { entries, transportState, configured: telemetryTransport.configured, connect, disconnect, clear };
+  return { entries, transportState, configured: telemetryTransport.configured, connect, disconnect, clear, addOperatorNote };
 }
