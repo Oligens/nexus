@@ -5,14 +5,9 @@ import { EMPTY_METRICS, type NexusMetrics } from '../types/nexus';
 export function useMetrics() {
   const [metrics, setMetrics] = useState<NexusMetrics>(EMPTY_METRICS);
 
-  useEffect(() => {
-    const stopTelemetry = nexusEventBus.on('telemetry_received', ({ message }) => {
-      // Metrics are intentionally not inferred from arbitrary text. A real backend
-      // can emit structured metric events and update this hook without mocks.
-      if (!message.trim()) return;
-    });
-    return () => stopTelemetry();
-  }, []);
+  useEffect(() => nexusEventBus.on('metrics_received', (incoming) => {
+    setMetrics((current) => ({ ...current, ...incoming }));
+  }), []);
 
   return { metrics, setMetrics };
 }
