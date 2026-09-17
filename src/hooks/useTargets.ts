@@ -8,7 +8,8 @@ export function useTargets() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
-    return nexusEventBus.on('target_registered', () => setTargets(targetService.list()));
+    const unsubscribe = nexusEventBus.on('target_registered', () => setTargets(targetService.list()));
+    return () => { unsubscribe(); };
   }, []);
 
   const register = useCallback((target: Omit<TargetNode, 'createdAt' | 'updatedAt'>) => {

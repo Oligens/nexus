@@ -8,7 +8,7 @@ export function useTelemetry() {
 
   useEffect(() => {
     const unsubscribe = telemetryTransport.subscribe((entry) => setEntries((prev) => [...prev, entry].slice(-140)));
-    return () => unsubscribe();
+    return () => { unsubscribe(); };
   }, []);
 
   const connect = useCallback(() => telemetryTransport.connect(), []);
@@ -17,7 +17,8 @@ export function useTelemetry() {
   const addOperatorNote = useCallback((message: string) => {
     const value = message.trim();
     if (!value) return;
-    setEntries((prev) => [...prev, { id: crypto.randomUUID(), timestamp: new Date().toISOString(), message: value, level: 'info', source: 'operator-note' }].slice(-140));
+    const entry: TelemetryEntry = { id: crypto.randomUUID(), timestamp: new Date().toISOString(), message: value, level: 'info', source: 'operator-note' };
+    setEntries((prev) => [...prev, entry].slice(-140));
   }, []);
 
   useEffect(() => {

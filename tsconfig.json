@@ -5,6 +5,7 @@
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "jsx": "react-jsx",
     "moduleResolution": "bundler",
+    "types": ["node"],
     "strict": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -13,4 +14,5 @@
     "allowImportingTsExtensions": true
   },
   "include": ["src"]
+
 }
