@@ -11,9 +11,9 @@
  * affichée si la case d'autorisation n'est pas cochée.
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, Radio, ShieldCheck } from 'lucide-react';
-import { launchProbe, PROBE_MODULES, type ProbeModule } from '../services/probeService';
+import { launchProbe, openProbeTelemetryStream, PROBE_MODULES, type ProbeModule } from '../services/probeService';
 
 export function AtibonHub() {
     const [targetHost, setTargetHost] = useState('127.0.0.1');
@@ -26,6 +26,11 @@ export function AtibonHub() {
     const [output, setOutput] = useState('En attente de lancement...');
     const [alertMessage, setAlertMessage] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+    // Télémétrie temps réel du backend Python (flux SSE de l'API Bridge)
+    const [liveLogs, setLiveLogs] = useState<string[]>([]);
+    const streamCloseRef = useRef<(() => void) | null>(null);
+
+    useEffect(() => () => streamCloseRef.current?.(), []);
 
     const toggleModule = (module: ProbeModule) => {
         setSelectedModules((prev) => prev.includes(module)
@@ -36,12 +41,26 @@ export function AtibonHub() {
     const handleLaunchProbe = async () => {
         setAlertMessage(null);
         setLoading(true);
+        setLiveLogs([]);
+        streamCloseRef.current?.();
+        streamCloseRef.current = null;
         try {
             const result = await launchProbe(
                 { targetHost: targetHost.trim(), targetPort, modules: selectedModules, authorized },
                 isSimulation,
             );
             setOutput(`[${result.runId ?? '—'}] ${result.message}`);
+            // Mode LIVE accepté par l'API Bridge → branchement du NEURAL TELEMETRY STREAM (SSE)
+            if (!isSimulation && result.accepted && result.streamPath) {
+                streamCloseRef.current = openProbeTelemetryStream(
+                    result.streamPath,
+                    (event) => {
+                        const line = `[${event.type ?? 'log'}] ${event.message ?? ''}`.trim();
+                        setLiveLogs((prev) => [...prev, line].slice(-400));
+                    },
+                    () => setLiveLogs((prev) => [...prev, '[stream] Flux télémétrie fermé.'].slice(-400)),
+                );
+            }
         } catch (error) {
             const reason = error instanceof Error ? error.message : String(error);
             setAlertMessage(reason);
@@ -142,6 +161,18 @@ export function AtibonHub() {
             <pre className="p-4 bg-black text-green-400 rounded overflow-x-auto text-sm whitespace-pre-wrap">
                 {output}
             </pre>
+
+            {/* NEURAL TELEMETRY STREAM — flux temps réel (SSE) de atibon.py via l'API Bridge */}
+            {liveLogs.length > 0 && (
+                <div className="mt-4">
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">
+                        Neural Telemetry Stream — LIVE ({liveLogs.length})
+                    </h3>
+                    <pre className="p-4 bg-black h-64 overflow-y-auto text-green-300 rounded border border-cyan-500/20 text-xs whitespace-pre-wrap">
+                        {liveLogs.join('\n')}
+                    </pre>
+                </div>
+            )}
         </div>
     );
 }
