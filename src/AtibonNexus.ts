@@ -224,7 +224,7 @@ function buildReport(target: AtibonTarget, observations: AtibonObservation[]): A
       averageLatencyMs,
       minLatencyMs: latencies.length ? Math.min(...latencies) : null,
       maxLatencyMs: latencies.length ? Math.max(...latencies) : null,
-      errorRate: observations.length ? Number(((errors / observations) * 100).toFixed(2)) : null,
+      errorRate: observations.length ? Number(((errors / observations.length) * 100).toFixed(2)) : null,
       responseBytesAverage: average(sizes),
     },
   };

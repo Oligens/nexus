@@ -1,10 +1,11 @@
 import React, { useMemo, useState } from 'react';
-import { Activity, Database, Lock, Radio, RefreshCw, ScanLine, Target, Wifi } from 'lucide-react';
+import { Activity, AlertTriangle, Database, Lock, Radio, RefreshCw, ScanLine, Target, Wifi, Zap } from 'lucide-react';
 import GlassPanel from './GlassPanel';
 import { useTargets } from '../hooks/useTargets';
 import { useMetrics } from '../hooks/useMetrics';
 import { evaluateAtibonTarget, createAtibonAuditEvent } from '../services/atibonGateway';
 import { nexusApiRequest } from '../services/nexusApi';
+import { launchProbe, PROBE_MODULES, type ProbeModule } from '../services/probeService';
 import type { TargetStatus } from '../types/nexus';
 
 type ActionName = 'probe' | 'isolate' | 'telemetry-sync';
@@ -19,8 +20,18 @@ const LiveTargetViewport: React.FC = () => {
   const [targetStatus, setTargetStatus] = useState<TargetStatus>('Standby');
   const [authorized, setAuthorized] = useState(false);
   const [actionState, setActionState] = useState('SYSTEM WAITING');
+  // ── Toggle Simulation / Live (mode LIVE par défaut) ───────────────────────
+  const [isSimulation, setIsSimulation] = useState(false);
+  const [targetPort, setTargetPort] = useState(8080);
+  const [selectedModules, setSelectedModules] = useState<ProbeModule[]>(['fingerprint']);
+  const [probing, setProbing] = useState(false);
+  const [liveAlert, setLiveAlert] = useState<string | null>(null);
 
   const selectedLabel = useMemo(() => selected?.name ?? 'NONE', [selected]);
+
+  const toggleModule = (module: ProbeModule) => {
+    setSelectedModules((prev) => prev.includes(module) ? prev.filter((entry) => entry !== module) : [...prev, module]);
+  };
 
   const addTarget = (event: React.FormEvent) => {
     event.preventDefault();
@@ -44,6 +55,32 @@ const LiveTargetViewport: React.FC = () => {
     if (action === 'isolate') {
       updateStatus(selected.id, 'Standby');
       setActionState(`ATIBON ISOLATION STATE :: ${selected.name}`);
+      return;
+    }
+    if (action === 'probe') {
+      // ── Lancement de la sonde : SIMULATION locale ou LIVE via backend atibon.py ──
+      setLiveAlert(null);
+      const host = (() => {
+        const endpoint = selected.endpoint?.trim() ?? '';
+        if (!endpoint) return selected.id;
+        try { return new URL(endpoint.includes('://') ? endpoint : `http://${endpoint}`).hostname; }
+        catch { return endpoint; }
+      })();
+      setProbing(true);
+      try {
+        const result = await launchProbe(
+          { targetHost: host, targetPort: targetPort, modules: selectedModules, authorized },
+          isSimulation,
+        );
+        setActionState(`${result.accepted ? 'OK' : 'REFUS'} :: ${result.message}`);
+        await nexusApiRequest(`/targets/${encodeURIComponent(selected.id)}/actions/probe`, { method: 'POST', body: JSON.stringify(createAtibonAuditEvent('probe', selected.id)) }).catch(() => undefined);
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : 'Erreur inconnue';
+        setLiveAlert(reason);
+        setActionState(`LIVE BLOCKED :: ${reason}`);
+      } finally {
+        setProbing(false);
+      }
       return;
     }
     try {
@@ -85,7 +122,63 @@ const LiveTargetViewport: React.FC = () => {
               <button type="submit" className="quick-action mt-2 w-full" disabled={!targetId.trim() || !targetName.trim()}><Target size={15} /> Enregistrer la cible</button>
             </form>
 
-            <div className="mt-3 glass-panel-gold p-3"><div className="flex items-center gap-2 mb-2 text-[9px] tracking-widest text-[#D4AF37]"><Activity size={13} /> QUICK ACTIONS <span className="ml-auto text-[8px] text-gray-500">ATIBON PROTECTED</span></div><div className="grid grid-cols-1 sm:grid-cols-3 gap-2"><button onClick={() => executeAction('probe')} disabled={!selected} className="quick-action"><Radio size={15} /> Lancer Sonde</button><button onClick={() => executeAction('isolate')} disabled={!selected} className="quick-action"><Lock size={15} /> Isoler Cible</button><button onClick={() => executeAction('telemetry-sync')} disabled={!selected} className="quick-action"><Database size={15} /> Sync Télémétrie</button></div></div>
+            <div className="mt-3 glass-panel-gold p-3">
+              <div className="flex items-center gap-2 mb-2 text-[9px] tracking-widest text-[#D4AF37]">
+                <Activity size={13} /> QUICK ACTIONS
+                {/* ── Toggle Switch SIMULATION / LIVE ── */}
+                <div className="ml-auto flex items-center gap-2" role="group" aria-label="Basculer entre simulation et live">
+                  <span className={`text-[8px] font-bold uppercase tracking-wider ${isSimulation ? 'text-[#00F0FF]' : 'text-gray-600'}`}>Sim</span>
+                  <button
+                    type="button"
+                    onClick={() => { setIsSimulation((prev) => !prev); setLiveAlert(null); }}
+                    aria-pressed={!isSimulation}
+                    title={isSimulation ? 'Mode SIMULATION — aucune requête réseau réelle' : 'Mode LIVE — requêtes HTTP/WebSocket vers le backend atibon.py'}
+                    className={`relative inline-flex h-5 w-10 shrink-0 items-center rounded-full border transition-all ${isSimulation ? 'border-cyan-400/60 bg-cyan-400/15' : 'border-red-500/70 bg-red-500/25 shadow-[0_0_12px_rgba(255,68,68,.35)]'}`}
+                  >
+                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full transition-all ${isSimulation ? 'translate-x-1 bg-[#00F0FF]' : 'translate-x-6 bg-[#ff4444]'}`} />
+                  </button>
+                  <span className={`flex items-center gap-1 text-[8px] font-bold uppercase tracking-wider ${isSimulation ? 'text-gray-600' : 'text-[#ff4444] neon-gold'}`}>
+                    <Zap size={10} /> Live
+                  </span>
+                </div>
+                <span className="text-[8px] text-gray-500">{isSimulation ? 'SIMULATION MODE' : 'LIVE MODE · ATIBON BACKEND'}</span>
+              </div>
+
+              {/* Paramètres de la sonde (cible, port, modules) */}
+              <div className="mb-2 grid grid-cols-2 sm:grid-cols-6 gap-2 items-center">
+                <label className="col-span-1 sm:col-span-2 text-[8px] uppercase tracking-wider text-gray-500">Port cible
+                  <input type="number" min={1} max={65535} value={targetPort} onChange={(e) => setTargetPort(Number(e.target.value) || 1)} className="nexus-input mt-1 w-full" />
+                </label>
+                <div className="col-span-1 sm:col-span-4 flex flex-wrap gap-1.5 items-center">
+                  <span className="text-[8px] uppercase tracking-wider text-gray-500 mr-1">Modules :</span>
+                  {PROBE_MODULES.map((module) => (
+                    <button key={module} type="button" onClick={() => toggleModule(module)}
+                      className={`px-2 py-1 rounded border text-[8px] font-bold uppercase tracking-wider transition-all ${selectedModules.includes(module) ? 'border-[#00F0FF] bg-[#00F0FF]/15 text-[#00F0FF]' : 'border-white/15 bg-white/[0.03] text-gray-500 hover:border-[#00F0FF]/50'}`}>
+                      {module}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Alerte visuelle claire si le mode LIVE est bloqué faute d'autorisation */}
+              {liveAlert !== null && (
+                <div role="alert" className="mb-2 flex items-start gap-2 rounded-md border border-red-500/60 bg-red-500/10 px-3 py-2 text-[9px] text-[#ff6b6b]">
+                  <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                  <span className="font-bold uppercase tracking-wider">{liveAlert}</span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <button onClick={() => executeAction('probe')} disabled={!selected || probing} className="quick-action">
+                  <Radio size={15} /> {probing ? 'Sonde en cours...' : isSimulation ? 'Lancer Sonde (SIM)' : 'Lancer Sonde (LIVE)'}
+                </button>
+                <button onClick={() => executeAction('isolate')} disabled={!selected} className="quick-action"><Lock size={15} /> Isoler Cible</button>
+                <button onClick={() => executeAction('telemetry-sync')} disabled={!selected} className="quick-action"><Database size={15} /> Sync Télémétrie</button>
+              </div>
+              {!isSimulation && !authorized && (
+                <p className="mt-2 text-[8px] uppercase tracking-wider text-[#ff6b6b]">⚠ Mode LIVE actif : cochez l&apos;autorisation légale « --i-have-authorization » ci-dessus pour autoriser l&apos;envoi réel de la sonde au backend.</p>
+              )}
+            </div>
           </div>
         </div>
       </div>
