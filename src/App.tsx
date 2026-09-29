@@ -2,7 +2,11 @@ import React, { useEffect, useState } from 'react';
 import LiveTargetViewport from './components/LiveTargetViewport';
 import NeuralTelemetryStream from './components/NeuralTelemetryStream';
 import AdaptiveControlMetrics from './components/AdaptiveControlMetrics';
+<<<<<<< HEAD
 import AtibonHub from './components/AtibonControlHub';
+=======
+import { AtibonHub } from './components/AtibonHub';
+>>>>>>> 43b8772 (Mise a jour de l'interface Nexus / ATIBON et integration des modules)
 import { useMetrics } from './hooks/useMetrics';
 
 const App: React.FC = () => {
@@ -27,6 +31,7 @@ const App: React.FC = () => {
           <div className="flex shrink-0 items-center gap-4 sm:gap-6"><div className="hidden sm:flex items-center gap-2"><span className="text-[9px] text-gray-500">SYS LOAD:</span><span className="text-[9px] font-mono text-gray-500">{systemLoad}</span></div><div className="text-xs font-mono text-[#D4AF37] neon-gold">{formatTime(currentTime)}</div></div>
         </header>
         <section className="flex-1 min-h-[620px] grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(360px,420px)] gap-3"><div className="min-w-0 min-h-[620px]"><LiveTargetViewport /></div><div className="min-w-0 min-h-[620px]"><NeuralTelemetryStream /></div></section>
+        <section className="shrink-0"><AtibonHub /></section>
         <section className="shrink-0 min-h-[190px] h-[220px]"><AdaptiveControlMetrics /></section>
         {/* ATIBON Control Hub — toggle SIMULATION / LIVE + sonde LIVE vers atibon.py */}
         <section className="shrink-0"><AtibonHub /></section>

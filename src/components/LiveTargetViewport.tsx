@@ -5,7 +5,11 @@ import { useTargets } from '../hooks/useTargets';
 import { useMetrics } from '../hooks/useMetrics';
 import { evaluateAtibonTarget, createAtibonAuditEvent } from '../services/atibonGateway';
 import { nexusApiRequest } from '../services/nexusApi';
+<<<<<<< HEAD
 import { launchProbe, PROBE_MODULES, type ProbeModule } from '../services/probeService';
+=======
+import { nexusEventBus } from '../services/nexusEventBus';
+>>>>>>> 43b8772 (Mise a jour de l'interface Nexus / ATIBON et integration des modules)
 import type { TargetStatus } from '../types/nexus';
 
 type ActionName = 'probe' | 'isolate' | 'telemetry-sync';
@@ -46,17 +50,21 @@ const LiveTargetViewport: React.FC = () => {
       return;
     }
     register({ id, name, region: targetRegion.trim() || 'UNSPECIFIED', status: targetStatus, endpoint: targetEndpoint.trim() || undefined });
+    nexusEventBus.emit('telemetry_received', { message: `Target registered and selected: ${name} (${id})`, level: 'info', source: 'target-register' });
     setTargetId(''); setTargetName(''); setTargetRegion(''); setTargetEndpoint(''); setTargetStatus('Standby');
     setActionState(`ATIBON REGISTERED :: ${name}`);
   };
 
   const executeAction = async (action: ActionName) => {
     if (!selected) { setActionState('SELECT OR REGISTER A TARGET'); return; }
+    const actionLabel = action === 'probe' ? 'Probe' : action === 'isolate' ? 'Isolation' : 'Telemetry sync';
     if (action === 'isolate') {
       updateStatus(selected.id, 'Standby');
       setActionState(`ATIBON ISOLATION STATE :: ${selected.name}`);
+      nexusEventBus.emit('telemetry_received', { message: `Local isolation state set to Standby for ${selected.name} (${selected.id})`, level: 'warning', source: 'quick-action' });
       return;
     }
+<<<<<<< HEAD
     if (action === 'probe') {
       // ── Lancement de la sonde : SIMULATION locale ou LIVE via backend atibon.py ──
       setLiveAlert(null);
@@ -83,12 +91,18 @@ const LiveTargetViewport: React.FC = () => {
       }
       return;
     }
+=======
+    setActionState(`${actionLabel.toUpperCase()} REQUESTED :: ${selected.name}`);
+    nexusEventBus.emit('telemetry_received', { message: `${actionLabel} requested for ${selected.name} (${selected.id})`, level: 'info', source: 'quick-action' });
+>>>>>>> 43b8772 (Mise a jour de l'interface Nexus / ATIBON et integration des modules)
     try {
       await nexusApiRequest(`/targets/${encodeURIComponent(selected.id)}/actions/${action}`, { method: 'POST', body: JSON.stringify(createAtibonAuditEvent(action, selected.id)) });
       setActionState(`${action.toUpperCase()} ACCEPTED :: ${selected.name}`);
+      nexusEventBus.emit('telemetry_received', { message: `${actionLabel} accepted by NEXUS API for ${selected.name}`, level: 'info', source: 'quick-action' });
     } catch (error) {
       const reason = error instanceof Error ? error.message : 'API indisponible';
-      setActionState(`ACTION NOT SENT :: ${reason}`);
+      setActionState(`${actionLabel.toUpperCase()} RECORDED LOCALLY :: ${selected.name}`);
+      nexusEventBus.emit('telemetry_received', { message: `${actionLabel} remains local; API unavailable: ${reason}`, level: 'warning', source: 'quick-action' });
     }
   };
 
@@ -119,7 +133,7 @@ const LiveTargetViewport: React.FC = () => {
               <div className="flex items-center gap-2 mb-2 text-[9px] tracking-widest text-[#D4AF37]"><Activity size={13} /> REGISTER TARGET <span className="ml-auto text-[8px] text-gray-500">ATIBON GATE</span></div>
               <div className="grid grid-cols-2 xl:grid-cols-5 gap-2"><input value={targetId} onChange={(e) => setTargetId(e.target.value)} placeholder="Target ID" className="nexus-input" /><input value={targetName} onChange={(e) => setTargetName(e.target.value)} placeholder="Target name" className="nexus-input" /><input value={targetRegion} onChange={(e) => setTargetRegion(e.target.value)} placeholder="Region / channel" className="nexus-input" /><input value={targetEndpoint} onChange={(e) => setTargetEndpoint(e.target.value)} placeholder="Endpoint (local/private)" className="nexus-input" /><select value={targetStatus} onChange={(e) => setTargetStatus(e.target.value as TargetStatus)} className="nexus-input"><option value="Standby">Standby</option><option value="Active">Active</option><option value="Compromised">Compromised</option></select></div>
               <label className="mt-2 flex items-center gap-2 text-[8px] uppercase tracking-wider text-gray-500"><input type="checkbox" checked={authorized} onChange={(e) => setAuthorized(e.target.checked)} /> Je confirme être autorisé à administrer cette cible.</label>
-              <button type="submit" className="quick-action mt-2 w-full" disabled={!targetId.trim() || !targetName.trim()}><Target size={15} /> Enregistrer la cible</button>
+              <button type="submit" className="quick-action mt-2 w-full" disabled={!targetId.trim() || !targetName.trim() || !authorized}><Target size={15} /> Enregistrer la cible</button>
             </form>
 
             <div className="mt-3 glass-panel-gold p-3">

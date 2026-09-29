@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { TelemetryEntry } from '../types/nexus';
+import { nexusEventBus } from '../services/nexusEventBus';
 import { telemetryTransport } from '../services/telemetryTransport';
 
 export function useTelemetry() {
@@ -7,7 +8,16 @@ export function useTelemetry() {
   const [transportState, setTransportState] = useState(telemetryTransport.getState());
 
   useEffect(() => {
-    const unsubscribe = telemetryTransport.subscribe((entry) => setEntries((prev) => [...prev, entry].slice(-140)));
+    const unsubscribe = nexusEventBus.on('telemetry_received', (event) => {
+      const entry: TelemetryEntry = {
+        id: event.id ?? crypto.randomUUID(),
+        timestamp: event.timestamp ?? new Date().toISOString(),
+        message: event.message,
+        level: event.level ?? 'info',
+        source: event.source,
+      };
+      setEntries((previous) => [...previous, entry].slice(-140));
+    });
     return () => { unsubscribe(); };
   }, []);
 
@@ -17,8 +27,7 @@ export function useTelemetry() {
   const addOperatorNote = useCallback((message: string) => {
     const value = message.trim();
     if (!value) return;
-    const entry: TelemetryEntry = { id: crypto.randomUUID(), timestamp: new Date().toISOString(), message: value, level: 'info', source: 'operator-note' };
-    setEntries((prev) => [...prev, entry].slice(-140));
+    nexusEventBus.emit('telemetry_received', { message: value, level: 'info', source: 'operator-note' });
   }, []);
 
   useEffect(() => {

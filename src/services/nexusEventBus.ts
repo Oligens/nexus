@@ -1,10 +1,10 @@
-import type { NexusMetrics } from '../types/nexus';
+import type { NexusMetrics, TelemetryEntry } from '../types/nexus';
 
 export type NexusEventMap = {
   target_registered: { targetId: string };
   target_selected: { targetId: string | null };
   target_isolated: { targetId: string };
-  telemetry_received: { message: string; source?: string };
+  telemetry_received: Pick<TelemetryEntry, 'message'> & Partial<Omit<TelemetryEntry, 'message'>>;
   metrics_received: Partial<NexusMetrics>;
   transport_state: { state: 'connecting' | 'connected' | 'disconnected' | 'error' };
   security_decision: { allowed: boolean; reason: string };

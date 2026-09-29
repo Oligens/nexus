@@ -7,14 +7,11 @@ const WS_URL = (import.meta.env.VITE_NEXUS_TELEMETRY_WS_URL as string | undefine
 
 class TelemetryTransport {
   private socket: WebSocket | null = null;
-  private listeners = new Set<TelemetryListener>();
   private state: TelemetryTransportState = 'disconnected';
 
   get configured() { return Boolean(WS_URL); }
   getState() { return this.state; }
   private setState(state: TelemetryTransportState) { this.state = state; nexusEventBus.emit('transport_state', { state }); }
-  subscribe(listener: TelemetryListener) { this.listeners.add(listener); return () => this.listeners.delete(listener); }
-
   connect() {
     if (!WS_URL || this.socket) return;
     this.setState('connecting');
@@ -26,8 +23,7 @@ class TelemetryTransport {
       this.socket.onmessage = (event) => {
         const entry = this.parseMessage(event.data);
         if (!entry) return;
-        this.listeners.forEach((listener) => listener(entry));
-        nexusEventBus.emit('telemetry_received', { message: entry.message, source: entry.source });
+        nexusEventBus.emit('telemetry_received', entry);
         const metrics = this.extractMetrics(event.data);
         if (metrics) nexusEventBus.emit('metrics_received', metrics);
       };
