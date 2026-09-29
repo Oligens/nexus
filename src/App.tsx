@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import LiveTargetViewport from './components/LiveTargetViewport';
 import NeuralTelemetryStream from './components/NeuralTelemetryStream';
 import AdaptiveControlMetrics from './components/AdaptiveControlMetrics';
+import AtibonHub from './components/AtibonControlHub';
 import { useMetrics } from './hooks/useMetrics';
 
 const App: React.FC = () => {
@@ -27,6 +28,8 @@ const App: React.FC = () => {
         </header>
         <section className="flex-1 min-h-[620px] grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(360px,420px)] gap-3"><div className="min-w-0 min-h-[620px]"><LiveTargetViewport /></div><div className="min-w-0 min-h-[620px]"><NeuralTelemetryStream /></div></section>
         <section className="shrink-0 min-h-[190px] h-[220px]"><AdaptiveControlMetrics /></section>
+        {/* ATIBON Control Hub — toggle SIMULATION / LIVE + sonde LIVE vers atibon.py */}
+        <section className="shrink-0"><AtibonHub /></section>
       </div>
       <div className="corner corner-tl" /><div className="corner corner-tr" /><div className="corner corner-bl" /><div className="corner corner-br" />
     </main>
