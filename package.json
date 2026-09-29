@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "bridge": "node bridge/server.js"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.1.0",

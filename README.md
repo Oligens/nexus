@@ -24,3 +24,19 @@ npm run dev
 ```
 
 > Les boutons de contrôle du frontend modifient uniquement l'état local tant qu'aucune API, WebSocket ou autre source de données réelle n'est configurée.
+
+## API Bridge (Node.js/Express) — `bridge/`
+
+Serveur pont entre l'ATIBON Control Hub (React, :3000) et le backend Python `atibon.py`.
+
+```bash
+cd bridge && npm install        # express + cors
+npm run bridge                  # depuis la racine (ou: node bridge/server.js)
+```
+
+Endpoints : `POST /api/probe/run` (garde-fou 403 si `iHaveAuthorization !== true`,
+spawn sécurisé de `python atibon.py --target-host … --target-port … --i-have-authorization …`),
+`GET /api/probe/:runId/stream` (SSE temps réel → NEURAL TELEMETRY STREAM),
+`GET /api/probe/:runId/logs` (JSON), `GET /api/health`.
+Variables : `PORT` (3001), `ATIBON_PYTHON`, `ATIBON_SCRIPT`, `CORS_ORIGINS` (voir `bridge/.env.example`).
+Frontend : définir `VITE_NEXUS_API_URL=http://127.0.0.1:3001` (défaut intégré sinon).

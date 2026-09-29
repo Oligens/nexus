@@ -36,9 +36,42 @@ export interface ProbeRunResult {
   runId?: string;
   message: string;
   transport: 'http' | 'websocket';
+  /** Chemin SSE fourni par l'API Bridge (ex: /api/probe/LIVE-XXXX/stream) */
+  streamPath?: string;
 }
 
 const DEFAULT_LIVE_PATH = '/api/probe/run';
+
+/** URL de base de l'API Bridge ATIBON (défaut : serveur pont local sur le port 3001). */
+function bridgeBase(): string {
+  const configured = (import.meta.env.VITE_NEXUS_API_URL as string | undefined)?.replace(/\/$/, '');
+  return configured ?? 'http://127.0.0.1:3001';
+}
+
+/**
+ * Ouvre un flux Server-Sent Events vers l'API Bridge pour alimenter le
+ * « NEURAL TELEMETRY STREAM » en temps réel (stdout/stderr d'atibon.py).
+ * Retourne une fonction de fermeture.
+ */
+export function openProbeTelemetryStream(
+  streamPath: string,
+  onEvent: (event: { ts?: string; type?: string; level?: string; message?: string }) => void,
+  onClose?: () => void,
+): () => void {
+  const source = new EventSource(`${bridgeBase()}${streamPath}`);
+  source.onmessage = (event: MessageEvent<string>) => {
+    try {
+      onEvent(JSON.parse(event.data) as { ts?: string; type?: string; level?: string; message?: string });
+    } catch {
+      /* trame non JSON (: ping, etc.) — ignorée */
+    }
+  };
+  source.onerror = () => {
+    source.close();
+    onClose?.();
+  };
+  return () => source.close();
+}
 
 function wsUrlFor(path: string): string | null {
   const configured = import.meta.env.VITE_NEXUS_TELEMETRY_WS_URL as string | undefined;
@@ -61,6 +94,7 @@ async function submitLiveProbeHttp(payload: ProbeRequestPayload): Promise<ProbeR
     accepted?: boolean;
     run_id?: string;
     message?: string;
+    stream?: string;
   }>(DEFAULT_LIVE_PATH, {
     method: 'POST',
     body: JSON.stringify(payload),
@@ -71,6 +105,7 @@ async function submitLiveProbeHttp(payload: ProbeRequestPayload): Promise<ProbeR
     runId: response.run_id,
     message: response.message ?? 'Sonde LIVE acceptée par le backend ATIBON.',
     transport: 'http',
+    streamPath: typeof response.stream === 'string' ? response.stream : undefined,
   };
 }
 

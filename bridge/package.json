@@ -1,0 +1,16 @@
+{
+  "name": "atibon-api-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Serveur pont Express entre l'ATIBON Control Hub (React) et le backend Python atibon.py",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2"
+  }
+}
